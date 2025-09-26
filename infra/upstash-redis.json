@@ -1,0 +1,63 @@
+{
+  "name": "meme-coin-radar-cache",
+  "region": "us-east-1",
+  "plan": "free",
+  "tls": true,
+  "eviction": true,
+  "maxmemory_policy": "allkeys-lru",
+  "configuration": {
+    "maxmemory": "30mb",
+    "timeout": 300,
+    "tcp_keepalive": 60,
+    "databases": 16
+  },
+  "environment_variables": {
+    "production": {
+      "REDIS_URL": "${UPSTASH_REDIS_REST_URL}",
+      "REDIS_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}",
+      "REDIS_PASSWORD": "${UPSTASH_REDIS_PASSWORD}",
+      "ENABLE_REDIS": "true",
+      "REDIS_CONNECT_TIMEOUT": "10000",
+      "REDIS_COMMAND_TIMEOUT": "5000",
+      "CACHE_TTL_SECONDS": "300",
+      "CACHE_MAX_KEYS": "5000"
+    },
+    "staging": {
+      "REDIS_URL": "${UPSTASH_REDIS_REST_URL}",
+      "REDIS_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}",
+      "REDIS_PASSWORD": "${UPSTASH_REDIS_PASSWORD}",
+      "ENABLE_REDIS": "true",
+      "REDIS_CONNECT_TIMEOUT": "10000",
+      "REDIS_COMMAND_TIMEOUT": "5000",
+      "CACHE_TTL_SECONDS": "180",
+      "CACHE_MAX_KEYS": "2000"
+    }
+  },
+  "setup_instructions": {
+    "1": "Create Upstash account at https://upstash.com",
+    "2": "Create new Redis database with free tier",
+    "3": "Copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN",
+    "4": "Add these to your deployment platform secrets",
+    "5": "Configure rate limiting to stay within free tier limits"
+  },
+  "free_tier_limits": {
+    "max_requests_per_day": 10000,
+    "max_bandwidth_per_day": "1GB",
+    "max_concurrent_connections": 100,
+    "max_database_size": "256MB",
+    "max_daily_commands": 10000
+  },
+  "monitoring": {
+    "metrics_to_track": [
+      "daily_commands_used",
+      "bandwidth_used",
+      "connection_count",
+      "memory_usage",
+      "hit_rate"
+    ],
+    "alerts": {
+      "high_usage_threshold": 0.8,
+      "daily_limit_warning": 0.9
+    }
+  }
+}

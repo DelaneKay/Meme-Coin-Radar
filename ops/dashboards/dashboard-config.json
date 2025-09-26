@@ -1,0 +1,968 @@
+{
+  "dashboards": {
+    "executive": {
+      "title": "Executive Dashboard - Meme Coin Radar",
+      "description": "High-level system health and business metrics",
+      "refreshInterval": "30s",
+      "timeRange": "24h",
+      "panels": [
+        {
+          "id": "system_uptime",
+          "title": "System Uptime",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "up{job=\"meme-coin-api\"}",
+              "legendFormat": "API Uptime"
+            },
+            {
+              "expr": "up{job=\"meme-coin-sentinel\"}",
+              "legendFormat": "Sentinel Uptime"
+            }
+          ],
+          "thresholds": [
+            { "value": 0.99, "color": "green" },
+            { "value": 0.95, "color": "yellow" },
+            { "value": 0, "color": "red" }
+          ],
+          "unit": "percent",
+          "position": { "x": 0, "y": 0, "w": 6, "h": 4 }
+        },
+        {
+          "id": "error_rate",
+          "title": "Error Rate (24h)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{status=~\"5..\"}[24h]) / rate(http_requests_total[24h]) * 100",
+              "legendFormat": "Error Rate"
+            }
+          ],
+          "thresholds": [
+            { "value": 1, "color": "green" },
+            { "value": 2, "color": "yellow" },
+            { "value": 5, "color": "red" }
+          ],
+          "unit": "percent",
+          "position": { "x": 6, "y": 0, "w": 6, "h": 4 }
+        },
+        {
+          "id": "response_time",
+          "title": "Average Response Time",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1h]))",
+              "legendFormat": "95th Percentile"
+            }
+          ],
+          "thresholds": [
+            { "value": 2, "color": "green" },
+            { "value": 3, "color": "yellow" },
+            { "value": 5, "color": "red" }
+          ],
+          "unit": "seconds",
+          "position": { "x": 12, "y": 0, "w": 6, "h": 4 }
+        },
+        {
+          "id": "active_users",
+          "title": "Active WebSocket Connections",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "websocket_connections_active",
+              "legendFormat": "Active Connections"
+            }
+          ],
+          "unit": "short",
+          "position": { "x": 18, "y": 0, "w": 6, "h": 4 }
+        },
+        {
+          "id": "tokens_discovered",
+          "title": "Tokens Discovered (24h)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(tokens_discovered_total[24h])",
+              "legendFormat": "New Tokens"
+            }
+          ],
+          "unit": "short",
+          "position": { "x": 0, "y": 4, "w": 6, "h": 4 }
+        },
+        {
+          "id": "security_events",
+          "title": "Security Events (24h)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(security_events_total[24h])",
+              "legendFormat": "Security Events"
+            }
+          ],
+          "thresholds": [
+            { "value": 10, "color": "green" },
+            { "value": 50, "color": "yellow" },
+            { "value": 100, "color": "red" }
+          ],
+          "unit": "short",
+          "position": { "x": 6, "y": 4, "w": 6, "h": 4 }
+        },
+        {
+          "id": "api_usage_trend",
+          "title": "API Usage Trend",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total[5m]) * 60",
+              "legendFormat": "Requests/min"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Requests per minute",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 4, "w": 12, "h": 8 }
+        },
+        {
+          "id": "system_resources",
+          "title": "System Resource Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "cpu_usage_percent",
+              "legendFormat": "CPU Usage %"
+            },
+            {
+              "expr": "memory_usage_percent",
+              "legendFormat": "Memory Usage %"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Percentage",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "position": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        }
+      ]
+    },
+    "operations": {
+      "title": "Operations Dashboard - Meme Coin Radar",
+      "description": "Detailed system health and operational metrics",
+      "refreshInterval": "15s",
+      "timeRange": "6h",
+      "panels": [
+        {
+          "id": "service_health",
+          "title": "Service Health Status",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "up",
+              "legendFormat": "{{job}} - {{instance}}"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Status",
+                  "job": "Service",
+                  "instance": "Instance"
+                }
+              }
+            }
+          ],
+          "position": { "x": 0, "y": 0, "w": 12, "h": 6 }
+        },
+        {
+          "id": "circuit_breaker_status",
+          "title": "Circuit Breaker Status",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "circuit_breaker_state",
+              "legendFormat": "{{service}} - {{state}}"
+            }
+          ],
+          "mappings": [
+            { "value": 0, "text": "CLOSED", "color": "green" },
+            { "value": 1, "text": "OPEN", "color": "red" },
+            { "value": 2, "text": "HALF_OPEN", "color": "yellow" }
+          ],
+          "position": { "x": 12, "y": 0, "w": 12, "h": 6 }
+        },
+        {
+          "id": "api_response_times",
+          "title": "API Response Times by Endpoint",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "p50 - {{method}} {{route}}"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "p95 - {{method}} {{route}}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "p99 - {{method}} {{route}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Response Time (seconds)",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 6, "w": 24, "h": 8 }
+        },
+        {
+          "id": "error_rates_by_endpoint",
+          "title": "Error Rates by Endpoint",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{status=~\"4..\"}[5m]) by (method, route)",
+              "legendFormat": "4xx - {{method}} {{route}}"
+            },
+            {
+              "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) by (method, route)",
+              "legendFormat": "5xx - {{method}} {{route}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Errors per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 14, "w": 12, "h": 8 }
+        },
+        {
+          "id": "external_api_performance",
+          "title": "External API Performance",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(external_api_duration_bucket[5m])) by (service)",
+              "legendFormat": "{{service}} - Response Time"
+            },
+            {
+              "expr": "rate(external_api_requests_total{success=\"false\"}[5m]) by (service)",
+              "legendFormat": "{{service}} - Error Rate"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Response Time (seconds)",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 14, "w": 12, "h": 8 }
+        },
+        {
+          "id": "rate_limit_usage",
+          "title": "Rate Limit Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate_limit_usage_percent by (service)",
+              "legendFormat": "{{service}} - Usage %"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Usage Percentage",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "thresholds": [
+            { "value": 80, "color": "yellow" },
+            { "value": 95, "color": "red" }
+          ],
+          "position": { "x": 0, "y": 22, "w": 12, "h": 6 }
+        },
+        {
+          "id": "websocket_metrics",
+          "title": "WebSocket Metrics",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "websocket_connections_active",
+              "legendFormat": "Active Connections"
+            },
+            {
+              "expr": "rate(websocket_messages_sent_total[5m]) * 60",
+              "legendFormat": "Messages Sent/min"
+            },
+            {
+              "expr": "rate(websocket_messages_received_total[5m]) * 60",
+              "legendFormat": "Messages Received/min"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Count",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 22, "w": 12, "h": 6 }
+        }
+      ]
+    },
+    "security": {
+      "title": "Security Dashboard - Meme Coin Radar",
+      "description": "Security monitoring and threat detection",
+      "refreshInterval": "10s",
+      "timeRange": "24h",
+      "panels": [
+        {
+          "id": "security_events_overview",
+          "title": "Security Events Overview",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(security_events_total{severity=\"critical\"}[24h])",
+              "legendFormat": "Critical Events"
+            },
+            {
+              "expr": "increase(security_events_total{severity=\"high\"}[24h])",
+              "legendFormat": "High Severity Events"
+            },
+            {
+              "expr": "increase(security_events_total{severity=\"medium\"}[24h])",
+              "legendFormat": "Medium Severity Events"
+            }
+          ],
+          "thresholds": [
+            { "value": 0, "color": "green" },
+            { "value": 1, "color": "yellow" },
+            { "value": 5, "color": "red" }
+          ],
+          "position": { "x": 0, "y": 0, "w": 18, "h": 4 }
+        },
+        {
+          "id": "active_threats",
+          "title": "Active Threats",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "security_active_threats",
+              "legendFormat": "Active Threats"
+            }
+          ],
+          "thresholds": [
+            { "value": 0, "color": "green" },
+            { "value": 1, "color": "red" }
+          ],
+          "position": { "x": 18, "y": 0, "w": 6, "h": 4 }
+        },
+        {
+          "id": "authentication_events",
+          "title": "Authentication Events",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(auth_attempts_total{result=\"success\"}[5m]) * 60",
+              "legendFormat": "Successful Logins/min"
+            },
+            {
+              "expr": "rate(auth_attempts_total{result=\"failed\"}[5m]) * 60",
+              "legendFormat": "Failed Logins/min"
+            },
+            {
+              "expr": "rate(auth_attempts_total{result=\"blocked\"}[5m]) * 60",
+              "legendFormat": "Blocked Attempts/min"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Attempts per minute",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 4, "w": 12, "h": 8 }
+        },
+        {
+          "id": "threat_detection",
+          "title": "Threat Detection",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(security_threats_detected_total[5m]) by (threat_type)",
+              "legendFormat": "{{threat_type}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Threats per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 4, "w": 12, "h": 8 }
+        },
+        {
+          "id": "blocked_ips",
+          "title": "Blocked IP Addresses",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "security_blocked_ips",
+              "legendFormat": "{{ip}} - {{reason}}"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "ip": "IP Address",
+                  "reason": "Block Reason",
+                  "timestamp": "Blocked At"
+                }
+              }
+            }
+          ],
+          "position": { "x": 0, "y": 12, "w": 12, "h": 8 }
+        },
+        {
+          "id": "security_alerts",
+          "title": "Active Security Alerts",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "security_alerts_active",
+              "legendFormat": "{{alert_type}} - {{severity}}"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "alert_type": "Alert Type",
+                  "severity": "Severity",
+                  "timestamp": "Created At"
+                }
+              }
+            }
+          ],
+          "position": { "x": 12, "y": 12, "w": 12, "h": 8 }
+        },
+        {
+          "id": "brute_force_attempts",
+          "title": "Brute Force Detection",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(brute_force_attempts_total[5m]) by (source_ip)",
+              "legendFormat": "{{source_ip}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Attempts per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 20, "w": 12, "h": 6 }
+        },
+        {
+          "id": "api_abuse_detection",
+          "title": "API Abuse Detection",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(api_abuse_detected_total[5m]) by (abuse_type)",
+              "legendFormat": "{{abuse_type}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Abuse events per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 20, "w": 12, "h": 6 }
+        }
+      ]
+    },
+    "business": {
+      "title": "Business Metrics Dashboard - Meme Coin Radar",
+      "description": "Token discovery and user engagement metrics",
+      "refreshInterval": "60s",
+      "timeRange": "7d",
+      "panels": [
+        {
+          "id": "token_discovery_rate",
+          "title": "Token Discovery Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(tokens_discovered_total[1h]) by (chain)",
+              "legendFormat": "{{chain}} - Tokens/hour"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Tokens per hour",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "id": "quality_score_distribution",
+          "title": "Quality Score Distribution",
+          "type": "histogram",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, token_quality_score_bucket)",
+              "legendFormat": "Median Score"
+            },
+            {
+              "expr": "histogram_quantile(0.90, token_quality_score_bucket)",
+              "legendFormat": "90th Percentile"
+            },
+            {
+              "expr": "histogram_quantile(0.95, token_quality_score_bucket)",
+              "legendFormat": "95th Percentile"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Quality Score",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "position": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "id": "chain_activity",
+          "title": "Activity by Chain",
+          "type": "pie",
+          "targets": [
+            {
+              "expr": "sum by (chain) (increase(tokens_discovered_total[24h]))",
+              "legendFormat": "{{chain}}"
+            }
+          ],
+          "position": { "x": 0, "y": 8, "w": 8, "h": 8 }
+        },
+        {
+          "id": "high_quality_tokens",
+          "title": "High Quality Tokens (Score > 80)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(increase(tokens_discovered_total{quality=\"high\"}[24h]))",
+              "legendFormat": "High Quality Tokens"
+            }
+          ],
+          "position": { "x": 8, "y": 8, "w": 8, "h": 4 }
+        },
+        {
+          "id": "user_engagement",
+          "title": "User Engagement Metrics",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "websocket_connections_active",
+              "legendFormat": "Active Connections"
+            },
+            {
+              "expr": "avg_over_time(websocket_connection_duration[24h])",
+              "legendFormat": "Avg Session Duration"
+            }
+          ],
+          "position": { "x": 8, "y": 12, "w": 8, "h": 4 }
+        },
+        {
+          "id": "api_usage_by_endpoint",
+          "title": "API Usage by Endpoint",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total[5m]) by (route)",
+              "legendFormat": "{{route}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Requests per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 16, "y": 8, "w": 8, "h": 8 }
+        },
+        {
+          "id": "cex_listing_events",
+          "title": "CEX Listing Events",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(cex_listing_events_total[1h]) by (exchange)",
+              "legendFormat": "{{exchange}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Listings per hour",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 16, "w": 12, "h": 6 }
+        },
+        {
+          "id": "alert_effectiveness",
+          "title": "Alert Effectiveness",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(alerts_sent_total[1h]) by (type)",
+              "legendFormat": "{{type}} - Sent"
+            },
+            {
+              "expr": "rate(alerts_acknowledged_total[1h]) by (type)",
+              "legendFormat": "{{type}} - Acknowledged"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Alerts per hour",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 16, "w": 12, "h": 6 }
+        }
+      ]
+    },
+    "infrastructure": {
+      "title": "Infrastructure Dashboard - Meme Coin Radar",
+      "description": "System resources and infrastructure monitoring",
+      "refreshInterval": "30s",
+      "timeRange": "6h",
+      "panels": [
+        {
+          "id": "cpu_usage",
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "cpu_usage_percent by (instance)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "CPU Usage %",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "thresholds": [
+            { "value": 70, "color": "yellow" },
+            { "value": 90, "color": "red" }
+          ],
+          "position": { "x": 0, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "id": "memory_usage",
+          "title": "Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "memory_usage_percent by (instance)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Memory Usage %",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "thresholds": [
+            { "value": 80, "color": "yellow" },
+            { "value": 95, "color": "red" }
+          ],
+          "position": { "x": 12, "y": 0, "w": 12, "h": 8 }
+        },
+        {
+          "id": "disk_usage",
+          "title": "Disk Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "disk_usage_percent by (instance, device)",
+              "legendFormat": "{{instance}} - {{device}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Disk Usage %",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "thresholds": [
+            { "value": 80, "color": "yellow" },
+            { "value": 90, "color": "red" }
+          ],
+          "position": { "x": 0, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "id": "network_io",
+          "title": "Network I/O",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(network_bytes_received[5m]) by (instance)",
+              "legendFormat": "{{instance}} - Received"
+            },
+            {
+              "expr": "rate(network_bytes_sent[5m]) by (instance)",
+              "legendFormat": "{{instance}} - Sent"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Bytes per second",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 8, "w": 12, "h": 8 }
+        },
+        {
+          "id": "redis_metrics",
+          "title": "Redis Metrics",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "redis_memory_usage_bytes",
+              "legendFormat": "Memory Usage"
+            },
+            {
+              "expr": "redis_connected_clients",
+              "legendFormat": "Connected Clients"
+            },
+            {
+              "expr": "rate(redis_commands_processed_total[5m])",
+              "legendFormat": "Commands/sec"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Count",
+              "min": 0
+            }
+          ],
+          "position": { "x": 0, "y": 16, "w": 12, "h": 6 }
+        },
+        {
+          "id": "database_connections",
+          "title": "Database Connection Pool",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "db_pool_active_connections",
+              "legendFormat": "Active Connections"
+            },
+            {
+              "expr": "db_pool_idle_connections",
+              "legendFormat": "Idle Connections"
+            },
+            {
+              "expr": "db_pool_waiting_connections",
+              "legendFormat": "Waiting Connections"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "Connection Count",
+              "min": 0
+            }
+          ],
+          "position": { "x": 12, "y": 16, "w": 12, "h": 6 }
+        }
+      ]
+    }
+  },
+  "alertRules": [
+    {
+      "alert": "HighErrorRate",
+      "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]) > 0.05",
+      "for": "2m",
+      "labels": {
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "High error rate detected",
+        "description": "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+      }
+    },
+    {
+      "alert": "HighResponseTime",
+      "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 3",
+      "for": "5m",
+      "labels": {
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "High response time detected",
+        "description": "95th percentile response time is {{ $value }}s"
+      }
+    },
+    {
+      "alert": "ServiceDown",
+      "expr": "up == 0",
+      "for": "1m",
+      "labels": {
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "Service is down",
+        "description": "{{ $labels.job }} service on {{ $labels.instance }} is down"
+      }
+    },
+    {
+      "alert": "HighCPUUsage",
+      "expr": "cpu_usage_percent > 90",
+      "for": "5m",
+      "labels": {
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "High CPU usage",
+        "description": "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+      }
+    },
+    {
+      "alert": "HighMemoryUsage",
+      "expr": "memory_usage_percent > 95",
+      "for": "5m",
+      "labels": {
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "High memory usage",
+        "description": "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+      }
+    },
+    {
+      "alert": "CircuitBreakerOpen",
+      "expr": "circuit_breaker_state{state=\"open\"} == 1",
+      "for": "1m",
+      "labels": {
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "Circuit breaker is open",
+        "description": "Circuit breaker for {{ $labels.service }} is open"
+      }
+    },
+    {
+      "alert": "RateLimitHigh",
+      "expr": "rate_limit_usage_percent > 90",
+      "for": "5m",
+      "labels": {
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Rate limit usage is high",
+        "description": "Rate limit usage for {{ $labels.service }} is {{ $value }}%"
+      }
+    },
+    {
+      "alert": "SecurityThreatDetected",
+      "expr": "increase(security_threats_detected_total[5m]) > 0",
+      "for": "0m",
+      "labels": {
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "Security threat detected",
+        "description": "{{ $value }} security threats of type {{ $labels.threat_type }} detected"
+      }
+    },
+    {
+      "alert": "BruteForceAttack",
+      "expr": "rate(brute_force_attempts_total[5m]) > 0.1",
+      "for": "2m",
+      "labels": {
+        "severity": "high"
+      },
+      "annotations": {
+        "summary": "Brute force attack detected",
+        "description": "Brute force attack detected from {{ $labels.source_ip }}"
+      }
+    },
+    {
+      "alert": "ExternalAPIDown",
+      "expr": "external_api_status == 0",
+      "for": "2m",
+      "labels": {
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "External API is down",
+        "description": "{{ $labels.service }} API is not responding"
+      }
+    }
+  ],
+  "notificationChannels": [
+    {
+      "name": "slack-critical",
+      "type": "slack",
+      "settings": {
+        "url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#alerts-critical",
+        "username": "Meme Coin Radar Alerts",
+        "title": "Critical Alert",
+        "text": "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}"
+      }
+    },
+    {
+      "name": "slack-warning",
+      "type": "slack",
+      "settings": {
+        "url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#alerts-warning",
+        "username": "Meme Coin Radar Alerts",
+        "title": "Warning Alert",
+        "text": "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}"
+      }
+    },
+    {
+      "name": "email-critical",
+      "type": "email",
+      "settings": {
+        "addresses": ["oncall@company.com", "security@company.com"],
+        "subject": "Critical Alert - Meme Coin Radar",
+        "body": "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}"
+      }
+    },
+    {
+      "name": "pagerduty",
+      "type": "pagerduty",
+      "settings": {
+        "integrationKey": "${PAGERDUTY_INTEGRATION_KEY}",
+        "severity": "critical",
+        "description": "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+      }
+    }
+  ]
+}

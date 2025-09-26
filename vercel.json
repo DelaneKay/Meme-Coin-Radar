@@ -1,0 +1,104 @@
+{
+  "version": 2,
+  "name": "meme-coin-radar-frontend",
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next",
+      "config": {
+        "projectSettings": {
+          "framework": "nextjs"
+        }
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://meme-coin-radar-api.onrender.com/api/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_APP_NAME": "Meme Coin Radar",
+    "NEXT_PUBLIC_APP_VERSION": "1.0.0",
+    "NEXT_PUBLIC_ENABLE_ANALYTICS": "true"
+  },
+  "build": {
+    "env": {
+      "NODE_VERSION": "18.17.0"
+    }
+  },
+  "functions": {
+    "frontend/src/pages/api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "github": {
+    "enabled": true,
+    "autoAlias": true,
+    "autoJobCancelation": true
+  },
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "npm ci",
+  "devCommand": "cd frontend && npm run dev",
+  "framework": "nextjs",
+  "crons": []
+}

@@ -1,0 +1,180 @@
+services:
+  # Main API Service
+  - type: web
+    name: meme-coin-radar-api
+    runtime: docker
+    dockerfilePath: ./infra/docker/Dockerfile
+    region: oregon
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_STRUCTURED_LOGS
+        value: true
+      - key: ENABLE_METRICS
+        value: true
+      
+      # Redis Configuration
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: meme-coin-radar-redis
+          property: connectionString
+      - key: ENABLE_REDIS
+        value: true
+      - key: CACHE_TTL_SECONDS
+        value: 300
+      
+      # Rate Limiting
+      - key: BIRDEYE_RATE_LIMIT_RPM
+        value: 60
+      - key: GOPLUS_RATE_LIMIT_RPM
+        value: 30
+      - key: DEXSCREENER_RATE_LIMIT_RPM
+        value: 300
+      - key: GECKOTERMINAL_RATE_LIMIT_RPM
+        value: 120
+      
+      # Chain Configuration
+      - key: ENABLED_CHAINS
+        value: sol,eth,bsc,base
+      - key: REFRESH_INTERVAL_MS
+        value: 30000
+      
+      # Token Filtering
+      - key: MIN_LIQUIDITY_USD
+        value: 12000
+      - key: MAX_TOKEN_AGE_HOURS
+        value: 48
+      - key: MAX_BUY_TAX_PERCENT
+        value: 10
+      - key: MAX_SELL_TAX_PERCENT
+        value: 10
+      - key: MIN_VOLUME_5M_USD
+        value: 1000
+      
+      # Alert Thresholds
+      - key: ALERT_MIN_LIQUIDITY_USD
+        value: 20000
+      - key: ALERT_MIN_SCORE
+        value: 75
+      - key: HOTLIST_MIN_SCORE
+        value: 80
+      - key: TRENDING_MIN_SCORE
+        value: 70
+      
+      # Security
+      - key: CORS_ORIGIN
+        fromGroup: frontend-urls
+      - key: WEBHOOK_SECRET
+        fromGroup: secrets
+      - key: API_RATE_LIMIT_RPM
+        value: 1000
+      
+      # External API Keys (from secrets)
+      - key: GOPLUS_API_KEY
+        fromGroup: secrets
+      - key: BIRDEYE_API_KEY
+        fromGroup: secrets
+      - key: DISCORD_WEBHOOK_URL
+        fromGroup: secrets
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: secrets
+      - key: TELEGRAM_CHAT_ID
+        fromGroup: secrets
+
+  # Sentinel Cron Job
+  - type: cron
+    name: meme-coin-radar-sentinel
+    runtime: node
+    buildCommand: npm ci && npm run build --workspace=sentinel
+    startCommand: node sentinel/dist/index.js
+    schedule: "*/2 * * * *"  # Every 2 minutes
+    region: oregon
+    plan: free
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_STRUCTURED_LOGS
+        value: true
+      
+      # API Configuration
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: meme-coin-radar-api
+          property: host
+      - key: WEBHOOK_SECRET
+        fromGroup: secrets
+      
+      # Exchange Configuration
+      - key: ENABLED_EXCHANGES
+        value: binance,coinbase,kraken,okx,bybit
+      - key: SENTINEL_REFRESH_MS
+        value: 120000
+      - key: STAGGER_DELAY_MS
+        value: 5000
+      
+      # Rate Limiting
+      - key: EXCHANGE_REQUEST_DELAY_MS
+        value: 2000
+      - key: MAX_CONCURRENT_REQUESTS
+        value: 3
+      
+      # Filtering
+      - key: MIN_LISTING_LIQUIDITY_USD
+        value: 50000
+      - key: SUPPORTED_CHAINS
+        value: sol,eth,bsc,base
+      
+      # Notifications
+      - key: DISCORD_WEBHOOK_URL
+        fromGroup: secrets
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: secrets
+      - key: TELEGRAM_CHAT_ID
+        fromGroup: secrets
+
+  # Redis Cache
+  - type: redis
+    name: meme-coin-radar-redis
+    region: oregon
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+# Environment Variable Groups
+envVarGroups:
+  - name: secrets
+    envVars:
+      - key: GOPLUS_API_KEY
+        generateValue: false  # Set manually in Render dashboard
+      - key: BIRDEYE_API_KEY
+        generateValue: false  # Set manually in Render dashboard
+      - key: DISCORD_WEBHOOK_URL
+        generateValue: false  # Set manually in Render dashboard
+      - key: TELEGRAM_BOT_TOKEN
+        generateValue: false  # Set manually in Render dashboard
+      - key: TELEGRAM_CHAT_ID
+        generateValue: false  # Set manually in Render dashboard
+      - key: WEBHOOK_SECRET
+        generateValue: true   # Auto-generate secure webhook secret
+        
+  - name: frontend-urls
+    envVars:
+      - key: CORS_ORIGIN
+        value: https://meme-coin-radar.vercel.app  # Update with actual frontend URL
+
+# Databases (if needed for future expansion)
+databases: []
+
+# Static Sites (if needed)
+staticSites: []

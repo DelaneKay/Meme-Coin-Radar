@@ -1,0 +1,270 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - 'package*.json'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '18.17.0'
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      is-preview: ${{ steps.env.outputs.is-preview }}
+      
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "environment=preview" >> $GITHUB_OUTPUT
+            echo "is-preview=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "is-preview=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "is-preview=false" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "is-preview=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-test:
+    name: Build and Test Frontend
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting
+        run: npm run lint --workspace=frontend
+        
+      - name: Run type checking
+        run: npm run type-check --workspace=frontend
+        
+      - name: Set environment variables
+        run: |
+          # Set API URL based on environment
+          if [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            echo "NEXT_PUBLIC_API_URL=${{ secrets.PROD_API_URL }}" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_WS_URL=${{ secrets.PROD_WS_URL }}" >> $GITHUB_ENV
+          elif [[ "${{ needs.determine-environment.outputs.environment }}" == "preview" ]]; then
+            echo "NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_WS_URL=${{ secrets.STAGING_WS_URL }}" >> $GITHUB_ENV
+          else
+            echo "NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_WS_URL=${{ secrets.STAGING_WS_URL }}" >> $GITHUB_ENV
+          fi
+          
+          # Feature flags
+          echo "NEXT_PUBLIC_ENABLE_ANALYTICS=true" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_ENABLE_DEBUG=${{ needs.determine-environment.outputs.environment != 'production' }}" >> $GITHUB_ENV
+          
+      - name: Build frontend
+        run: npm run build --workspace=frontend
+        
+      - name: Run tests
+        run: npm test --workspace=frontend --if-present
+        
+      - name: Bundle analysis
+        run: |
+          # Analyze bundle size
+          cd frontend
+          npx next-bundle-analyzer --help || echo "Bundle analyzer not configured"
+          
+  deploy-to-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-test]
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+        
+      - name: Pull Vercel Environment Information
+        run: |
+          cd frontend
+          if [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          fi
+          
+      - name: Build Project Artifacts
+        run: |
+          cd frontend
+          # Set environment variables for build
+          if [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            export NEXT_PUBLIC_API_URL="${{ secrets.PROD_API_URL }}"
+            export NEXT_PUBLIC_WS_URL="${{ secrets.PROD_WS_URL }}"
+          else
+            export NEXT_PUBLIC_API_URL="${{ secrets.STAGING_API_URL }}"
+            export NEXT_PUBLIC_WS_URL="${{ secrets.STAGING_WS_URL }}"
+          fi
+          
+          export NEXT_PUBLIC_ENABLE_ANALYTICS=true
+          export NEXT_PUBLIC_ENABLE_DEBUG=${{ needs.determine-environment.outputs.environment != 'production' }}
+          
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          cd frontend
+          if [[ "${{ needs.determine-environment.outputs.is-preview }}" == "true" ]]; then
+            # Preview deployment for PRs
+            DEPLOYMENT_URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          elif [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            # Production deployment
+            DEPLOYMENT_URL=$(vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }})
+          else
+            # Staging deployment
+            DEPLOYMENT_URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          fi
+          
+          echo "deployment-url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOYMENT_URL"
+          
+      - name: Health check
+        run: |
+          DEPLOYMENT_URL="${{ steps.deploy.outputs.deployment-url }}"
+          
+          # Wait for deployment to be ready
+          for i in {1..30}; do
+            if curl -f "$DEPLOYMENT_URL"; then
+              echo "Frontend health check passed!"
+              exit 0
+            fi
+            echo "Frontend not ready, retrying in 10 seconds..."
+            sleep 10
+          done
+          
+          echo "Frontend health check failed after 5 minutes"
+          exit 1
+          
+      - name: Run E2E tests
+        if: needs.determine-environment.outputs.environment == 'production'
+        run: |
+          # Run end-to-end tests against the deployed frontend
+          DEPLOYMENT_URL="${{ steps.deploy.outputs.deployment-url }}"
+          
+          # Basic functionality tests
+          curl -f "$DEPLOYMENT_URL" || exit 1
+          
+          # Test that the app can load data from API
+          # This would be expanded with proper E2E testing tools like Playwright
+          echo "E2E tests would run here against $DEPLOYMENT_URL"
+          
+      - name: Comment on PR
+        if: needs.determine-environment.outputs.is-preview == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = '${{ steps.deploy.outputs.deployment-url }}';
+            const comment = `🚀 **Preview Deployment Ready**
+            
+            📱 **Frontend**: ${deploymentUrl}
+            🔗 **API**: ${{ secrets.STAGING_API_URL }}
+            
+            **Changes in this PR:**
+            - Frontend updates deployed to preview environment
+            - Connected to staging API for testing
+            
+            **Test the deployment:**
+            - [ ] Dashboard loads correctly
+            - [ ] WebSocket connection works
+            - [ ] Token data displays properly
+            - [ ] Alerts can be configured
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  notify-deployment:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-to-vercel]
+    if: always() && needs.determine-environment.outputs.is-preview != 'true'
+    
+    steps:
+      - name: Notify Discord on success
+        if: success()
+        run: |
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          DEPLOYMENT_URL="${{ needs.deploy-to-vercel.outputs.deployment-url }}"
+          
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🎨 Frontend Deployment Successful\",
+                \"description\": \"Environment: **$ENV**\\nURL: [$DEPLOYMENT_URL]($DEPLOYMENT_URL)\\nCommit: \`${{ github.sha }}\`\\nBranch: \`${{ github.ref_name }}\`\",
+                \"color\": 3066993,
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+              }]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+            
+      - name: Notify Discord on failure
+        if: failure()
+        run: |
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"❌ Frontend Deployment Failed\",
+                \"description\": \"Environment: **$ENV**\\nCommit: \`${{ github.sha }}\`\\nBranch: \`${{ github.ref_name }}\`\\n\\n[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                \"color\": 15158332,
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+              }]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}

@@ -1,0 +1,73 @@
+import EventEmitter from 'events';
+import { CacheManager } from '../utils/cache';
+import { RateLimitManager } from '../utils/rateLimiter';
+import { DexScreenerPair, BirdeyeTokenData, GeckoTerminalOHLC, ChainId } from '../types';
+interface HealthMetrics {
+    callsPerMinute: Record<string, number>;
+    statusCounts: Record<string, Record<number, number>>;
+    cacheHitRatio: number;
+    queueSizes: Record<ChainId, number>;
+    droppedPairs: Record<string, number>;
+    lastTickTimestamps: Record<ChainId, number>;
+}
+export declare class DataCollector extends EventEmitter {
+    private cache;
+    private rateLimiter;
+    private baselines;
+    private isRunning;
+    private discoveryQueues;
+    private seenPairs;
+    private pollingInterval;
+    private discoveryInterval;
+    private config;
+    private rateLimits;
+    private healthMetrics;
+    private tokenBuckets;
+    constructor(cache: CacheManager, rateLimiter: RateLimitManager);
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    private startDiscovery;
+    private runDiscoveryForAllChains;
+    private discoverPairsForChain;
+    private getQuoteTokensForChain;
+    private searchNewPairs;
+    private cleanupDiscoveryQueue;
+    private startPolling;
+    private runPollingCycle;
+    private pollChain;
+    private pollPairBatch;
+    private fetchPairData;
+    private normalizePairData;
+    private mapChainId;
+    private updateTokenBaseline;
+    private calculatePriceSlope;
+    private backfillPriceHistory;
+    private shouldEmitUpdate;
+    private canMakeRequest;
+    private makeRequest;
+    private handleRateLimit;
+    private recordApiCall;
+    private startHealthMetrics;
+    private updateCacheHitRatio;
+    getHealthMetrics(): HealthMetrics;
+    private isValidPair;
+    private isNotFoundError;
+    private sleep;
+    getDexScreenerPairs(chainId: ChainId, limit?: number): Promise<DexScreenerPair[]>;
+    searchDexScreenerTokens(query: string, chainId?: ChainId): Promise<DexScreenerPair[]>;
+    getTokensByChain(chainId: ChainId, minLiquidity?: number): Promise<DexScreenerPair[]>;
+    getHealthStatus(): {
+        status: 'up' | 'down' | 'degraded';
+        lastCheck: number;
+        error?: string;
+    };
+    private calculateErrorRate;
+    getGeckoTerminalOHLC(): Promise<GeckoTerminalOHLC | null>;
+    getBirdeyeTrendingTokens(): Promise<BirdeyeTokenData[]>;
+    getBirdeyeTokenInfo(): Promise<BirdeyeTokenData | null>;
+    updateBaseline(): void;
+    getBaseline(): any;
+    enrichWithBirdeyeData(pairs: DexScreenerPair[]): Promise<DexScreenerPair[]>;
+}
+export {};
+//# sourceMappingURL=dataCollector.d.ts.map

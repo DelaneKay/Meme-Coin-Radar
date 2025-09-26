@@ -1,0 +1,102 @@
+# Meme Coin Radar - Scheduler Service Dockerfile
+# Multi-stage build for optimized production image
+
+# Build stage
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    curl
+
+# Copy package files
+COPY package*.json ./
+COPY api/package*.json ./api/
+COPY sentinel/package*.json ./sentinel/
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build --workspace=api
+RUN npm run build --workspace=sentinel
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    tzdata \
+    dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S scheduler -u 1001 -G nodejs
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application from builder stage
+COPY --from=builder --chown=scheduler:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=scheduler:nodejs /app/package*.json ./
+COPY --from=builder --chown=scheduler:nodejs /app/api ./api
+COPY --from=builder --chown=scheduler:nodejs /app/sentinel ./sentinel
+COPY --from=builder --chown=scheduler:nodejs /app/ops ./ops
+
+# Copy scheduler-specific files
+COPY --chown=scheduler:nodejs ops/cron/scheduler.js ./ops/cron/
+COPY --chown=scheduler:nodejs ops/cron/cron-config.yml ./ops/cron/
+COPY --chown=scheduler:nodejs ops/cron/package.json ./ops/cron/
+
+# Install scheduler dependencies
+WORKDIR /app/ops/cron
+RUN npm ci --only=production && npm cache clean --force
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data /app/tmp && \
+    chown -R scheduler:nodejs /app/logs /app/data /app/tmp
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV TZ=UTC
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+# Switch to non-root user
+USER scheduler
+
+# Expose ports
+EXPOSE 3001 9090
+
+# Set working directory back to app root
+WORKDIR /app
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the scheduler
+CMD ["node", "ops/cron/scheduler.js", "ops/cron/cron-config.yml"]
+
+# Labels for metadata
+LABEL maintainer="Meme Coin Radar Team"
+LABEL version="1.0.0"
+LABEL description="Job scheduler service for Meme Coin Radar"
+LABEL org.opencontainers.image.title="Meme Coin Radar Scheduler"
+LABEL org.opencontainers.image.description="Containerized job scheduler for managing scheduled tasks"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.vendor="Meme Coin Radar"
+LABEL org.opencontainers.image.licenses="MIT"

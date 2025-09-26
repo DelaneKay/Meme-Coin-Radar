@@ -1,0 +1,432 @@
+apiVersion: 1
+
+# Grafana Dashboard Provisioning Configuration
+# This file configures automatic dashboard provisioning for Meme Coin Radar
+
+providers:
+  - name: 'meme-coin-radar-dashboards'
+    orgId: 1
+    folder: 'Meme Coin Radar'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+
+# Dashboard definitions
+dashboards:
+  - dashboard:
+      id: null
+      title: "Executive Dashboard - Meme Coin Radar"
+      tags: ["meme-coin-radar", "executive", "overview"]
+      timezone: "browser"
+      panels:
+        - id: 1
+          title: "System Health Overview"
+          type: "stat"
+          targets:
+            - expr: "up{job=~'meme-coin-.*'}"
+              legendFormat: "{{job}}"
+          fieldConfig:
+            defaults:
+              color:
+                mode: "thresholds"
+              thresholds:
+                steps:
+                  - color: "red"
+                    value: 0
+                  - color: "yellow"
+                    value: 0.8
+                  - color: "green"
+                    value: 0.99
+              unit: "percentunit"
+          gridPos:
+            h: 8
+            w: 12
+            x: 0
+            y: 0
+
+        - id: 2
+          title: "Request Rate"
+          type: "graph"
+          targets:
+            - expr: "rate(http_requests_total[5m])"
+              legendFormat: "{{method}} {{route}}"
+          yAxes:
+            - label: "Requests/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 12
+            y: 0
+
+        - id: 3
+          title: "Error Rate"
+          type: "graph"
+          targets:
+            - expr: "rate(http_requests_total{status=~'4..'}[5m])"
+              legendFormat: "4xx Errors"
+            - expr: "rate(http_requests_total{status=~'5..'}[5m])"
+              legendFormat: "5xx Errors"
+          yAxes:
+            - label: "Errors/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 0
+            y: 8
+
+        - id: 4
+          title: "Response Time"
+          type: "graph"
+          targets:
+            - expr: "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))"
+              legendFormat: "p50"
+            - expr: "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))"
+              legendFormat: "p95"
+            - expr: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"
+              legendFormat: "p99"
+          yAxes:
+            - label: "Response Time (s)"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 12
+            y: 8
+
+      time:
+        from: "now-6h"
+        to: "now"
+      refresh: "30s"
+
+  - dashboard:
+      id: null
+      title: "Security Dashboard - Meme Coin Radar"
+      tags: ["meme-coin-radar", "security", "monitoring"]
+      timezone: "browser"
+      panels:
+        - id: 1
+          title: "Security Events"
+          type: "graph"
+          targets:
+            - expr: "rate(security_events_total[5m]) by (severity)"
+              legendFormat: "{{severity}}"
+          yAxes:
+            - label: "Events/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 0
+            y: 0
+
+        - id: 2
+          title: "Authentication Failures"
+          type: "graph"
+          targets:
+            - expr: "rate(auth_attempts_total{result='failed'}[5m])"
+              legendFormat: "Failed Attempts"
+            - expr: "rate(auth_attempts_total{result='blocked'}[5m])"
+              legendFormat: "Blocked Attempts"
+          yAxes:
+            - label: "Attempts/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 12
+            y: 0
+
+        - id: 3
+          title: "Threat Detection"
+          type: "graph"
+          targets:
+            - expr: "rate(security_threats_detected_total[5m]) by (threat_type)"
+              legendFormat: "{{threat_type}}"
+          yAxes:
+            - label: "Threats/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 0
+            y: 8
+
+        - id: 4
+          title: "Rate Limiting"
+          type: "graph"
+          targets:
+            - expr: "rate(rate_limit_exceeded_total[5m]) by (service)"
+              legendFormat: "{{service}}"
+          yAxes:
+            - label: "Rate Limits Exceeded/sec"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 12
+            y: 8
+
+      time:
+        from: "now-24h"
+        to: "now"
+      refresh: "10s"
+
+  - dashboard:
+      id: null
+      title: "Business Metrics - Meme Coin Radar"
+      tags: ["meme-coin-radar", "business", "metrics"]
+      timezone: "browser"
+      panels:
+        - id: 1
+          title: "Token Discovery Rate"
+          type: "graph"
+          targets:
+            - expr: "rate(tokens_discovered_total[1h]) by (chain)"
+              legendFormat: "{{chain}}"
+          yAxes:
+            - label: "Tokens/hour"
+              min: 0
+          gridPos:
+            h: 8
+            w: 12
+            x: 0
+            y: 0
+
+        - id: 2
+          title: "Quality Score Distribution"
+          type: "histogram"
+          targets:
+            - expr: "histogram_quantile(0.50, token_quality_score_bucket)"
+              legendFormat: "Median"
+            - expr: "histogram_quantile(0.90, token_quality_score_bucket)"
+              legendFormat: "90th percentile"
+            - expr: "histogram_quantile(0.95, token_quality_score_bucket)"
+              legendFormat: "95th percentile"
+          yAxes:
+            - label: "Quality Score"
+              min: 0
+              max: 100
+          gridPos:
+            h: 8
+            w: 12
+            x: 12
+            y: 0
+
+        - id: 3
+          title: "Active WebSocket Connections"
+          type: "stat"
+          targets:
+            - expr: "websocket_connections_active"
+              legendFormat: "Active Connections"
+          fieldConfig:
+            defaults:
+              color:
+                mode: "thresholds"
+              thresholds:
+                steps:
+                  - color: "green"
+                    value: 0
+                  - color: "yellow"
+                    value: 100
+                  - color: "red"
+                    value: 500
+          gridPos:
+            h: 4
+            w: 6
+            x: 0
+            y: 8
+
+        - id: 4
+          title: "CEX Listing Events"
+          type: "stat"
+          targets:
+            - expr: "increase(cex_listing_events_total[24h])"
+              legendFormat: "Listings (24h)"
+          fieldConfig:
+            defaults:
+              color:
+                mode: "palette-classic"
+          gridPos:
+            h: 4
+            w: 6
+            x: 6
+            y: 8
+
+        - id: 5
+          title: "High Quality Tokens"
+          type: "stat"
+          targets:
+            - expr: "sum(increase(tokens_discovered_total{quality='high'}[24h]))"
+              legendFormat: "High Quality (24h)"
+          fieldConfig:
+            defaults:
+              color:
+                mode: "thresholds"
+              thresholds:
+                steps:
+                  - color: "red"
+                    value: 0
+                  - color: "yellow"
+                    value: 10
+                  - color: "green"
+                    value: 50
+          gridPos:
+            h: 4
+            w: 6
+            x: 12
+            y: 8
+
+        - id: 6
+          title: "Alert Effectiveness"
+          type: "stat"
+          targets:
+            - expr: "rate(alerts_acknowledged_total[24h]) / rate(alerts_sent_total[24h]) * 100"
+              legendFormat: "Acknowledgment Rate %"
+          fieldConfig:
+            defaults:
+              unit: "percent"
+              color:
+                mode: "thresholds"
+              thresholds:
+                steps:
+                  - color: "red"
+                    value: 0
+                  - color: "yellow"
+                    value: 70
+                  - color: "green"
+                    value: 90
+          gridPos:
+            h: 4
+            w: 6
+            x: 18
+            y: 8
+
+      time:
+        from: "now-7d"
+        to: "now"
+      refresh: "60s"
+
+# Data source configuration
+datasources:
+  - name: 'Prometheus'
+    type: 'prometheus'
+    access: 'proxy'
+    url: 'http://prometheus:9090'
+    isDefault: true
+    editable: true
+
+  - name: 'Loki'
+    type: 'loki'
+    access: 'proxy'
+    url: 'http://loki:3100'
+    editable: true
+
+# Alert notification channels
+notifiers:
+  - name: 'slack-critical'
+    type: 'slack'
+    uid: 'slack-critical'
+    settings:
+      url: '${SLACK_WEBHOOK_URL}'
+      channel: '#alerts-critical'
+      username: 'Meme Coin Radar'
+      title: 'Critical Alert - {{ .GroupLabels.alertname }}'
+      text: |
+        {{ range .Alerts }}
+        *Alert:* {{ .Annotations.summary }}
+        *Description:* {{ .Annotations.description }}
+        *Severity:* {{ .Labels.severity }}
+        *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+        {{ end }}
+
+  - name: 'slack-warning'
+    type: 'slack'
+    uid: 'slack-warning'
+    settings:
+      url: '${SLACK_WEBHOOK_URL}'
+      channel: '#alerts-warning'
+      username: 'Meme Coin Radar'
+      title: 'Warning Alert - {{ .GroupLabels.alertname }}'
+      text: |
+        {{ range .Alerts }}
+        *Alert:* {{ .Annotations.summary }}
+        *Description:* {{ .Annotations.description }}
+        *Severity:* {{ .Labels.severity }}
+        *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+        {{ end }}
+
+  - name: 'email-oncall'
+    type: 'email'
+    uid: 'email-oncall'
+    settings:
+      addresses: 'oncall@company.com;security@company.com'
+      subject: 'Meme Coin Radar Alert - {{ .GroupLabels.alertname }}'
+      body: |
+        Alert Details:
+        {{ range .Alerts }}
+        Summary: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        Severity: {{ .Labels.severity }}
+        Started: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+        {{ end }}
+
+# Alert rules
+rules:
+  - alert: 'HighErrorRate'
+    expr: 'rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05'
+    for: '2m'
+    labels:
+      severity: 'critical'
+    annotations:
+      summary: 'High error rate detected'
+      description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes'
+
+  - alert: 'ServiceDown'
+    expr: 'up == 0'
+    for: '1m'
+    labels:
+      severity: 'critical'
+    annotations:
+      summary: 'Service is down'
+      description: '{{ $labels.job }} service on {{ $labels.instance }} is down'
+
+  - alert: 'HighResponseTime'
+    expr: 'histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 3'
+    for: '5m'
+    labels:
+      severity: 'warning'
+    annotations:
+      summary: 'High response time detected'
+      description: '95th percentile response time is {{ $value }}s'
+
+  - alert: 'SecurityThreatDetected'
+    expr: 'increase(security_threats_detected_total[5m]) > 0'
+    for: '0m'
+    labels:
+      severity: 'critical'
+    annotations:
+      summary: 'Security threat detected'
+      description: '{{ $value }} security threats of type {{ $labels.threat_type }} detected'
+
+  - alert: 'CircuitBreakerOpen'
+    expr: 'circuit_breaker_state{state="open"} == 1'
+    for: '1m'
+    labels:
+      severity: 'critical'
+    annotations:
+      summary: 'Circuit breaker is open'
+      description: 'Circuit breaker for {{ $labels.service }} is open'
+
+  - alert: 'RateLimitHigh'
+    expr: 'rate_limit_usage_percent > 90'
+    for: '5m'
+    labels:
+      severity: 'warning'
+    annotations:
+      summary: 'Rate limit usage is high'
+      description: 'Rate limit usage for {{ $labels.service }} is {{ $value }}%'

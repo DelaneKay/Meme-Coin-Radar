@@ -1,0 +1,244 @@
+# Cloudflare Workers configuration for Meme Coin Radar Scheduler
+name = "meme-coin-radar-scheduler"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Worker Configuration
+workers_dev = true
+route = ""
+zone_id = ""
+
+# Account Configuration
+account_id = ""
+
+# Build Configuration
+[build]
+command = "npm run build"
+cwd = "ops/cron"
+watch_dir = ["ops/cron", "api/src", "sentinel/src"]
+
+# Environment Variables
+[env.production.vars]
+NODE_ENV = "production"
+LOG_LEVEL = "info"
+API_BASE_URL = "https://meme-coin-radar-api.onrender.com"
+FRONTEND_URL = "https://meme-coin-radar.vercel.app"
+DEXSCREENER_BASE_URL = "https://api.dexscreener.com"
+GOPLUS_BASE_URL = "https://api.gopluslabs.io"
+BIRDEYE_BASE_URL = "https://public-api.birdeye.so"
+COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
+RATE_LIMIT_WINDOW_MS = "60000"
+RATE_LIMIT_MAX_REQUESTS = "100"
+MAX_CONCURRENT_JOBS = "3"
+JOB_TIMEOUT_MS = "300000"
+RETRY_ATTEMPTS = "3"
+RETRY_DELAY_MS = "5000"
+METRICS_ENABLED = "true"
+LOGGING_ENABLED = "true"
+
+[env.staging.vars]
+NODE_ENV = "staging"
+LOG_LEVEL = "debug"
+API_BASE_URL = "https://meme-coin-radar-api-staging.onrender.com"
+FRONTEND_URL = "https://meme-coin-radar-staging.vercel.app"
+DEXSCREENER_BASE_URL = "https://api.dexscreener.com"
+GOPLUS_BASE_URL = "https://api.gopluslabs.io"
+BIRDEYE_BASE_URL = "https://public-api.birdeye.so"
+COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
+RATE_LIMIT_WINDOW_MS = "60000"
+RATE_LIMIT_MAX_REQUESTS = "50"
+MAX_CONCURRENT_JOBS = "2"
+JOB_TIMEOUT_MS = "180000"
+RETRY_ATTEMPTS = "2"
+RETRY_DELAY_MS = "3000"
+METRICS_ENABLED = "true"
+LOGGING_ENABLED = "true"
+
+# Secrets (set via wrangler secret put)
+# DEXSCREENER_API_KEY
+# GOPLUS_API_KEY
+# BIRDEYE_API_KEY
+# COINGECKO_API_KEY
+# JWT_SECRET
+# API_KEY_SECRET
+# ENCRYPTION_KEY
+# SLACK_WEBHOOK_URL
+# DISCORD_WEBHOOK_URL
+# EMAIL_SERVICE_API_KEY
+# PAGERDUTY_INTEGRATION_KEY
+# DATABASE_URL
+# REDIS_URL
+
+# Cron Triggers
+[[triggers.crons]]
+# Radar Jobs - Solana (every 15 seconds)
+cron = "*/15 * * * * *"
+name = "radar-solana"
+
+[[triggers.crons]]
+# Radar Jobs - Ethereum (every 30 seconds)
+cron = "*/30 * * * * *"
+name = "radar-ethereum"
+
+[[triggers.crons]]
+# Radar Jobs - BSC (every 45 seconds)
+cron = "*/45 * * * * *"
+name = "radar-bsc"
+
+[[triggers.crons]]
+# Radar Jobs - Base (every 60 seconds)
+cron = "0 * * * * *"
+name = "radar-base"
+
+[[triggers.crons]]
+# Sentinel Jobs - CEX Listings (every 2 minutes)
+cron = "0 */2 * * * *"
+name = "sentinel-cex-listings"
+
+[[triggers.crons]]
+# Sentinel Jobs - Price Movements (every 3 minutes)
+cron = "0 */3 * * * *"
+name = "sentinel-price-movements"
+
+[[triggers.crons]]
+# Security Monitoring (every 5 minutes)
+cron = "0 */5 * * * *"
+name = "security-monitoring"
+
+[[triggers.crons]]
+# Data Maintenance - Cache Cleanup (every 15 minutes)
+cron = "0 */15 * * * *"
+name = "cache-cleanup"
+
+[[triggers.crons]]
+# Data Maintenance - Metrics Aggregation (every 30 minutes)
+cron = "0 */30 * * * *"
+name = "metrics-aggregation"
+
+[[triggers.crons]]
+# Health Monitoring (every 5 minutes)
+cron = "0 */5 * * * *"
+name = "health-monitoring"
+
+[[triggers.crons]]
+# Performance Optimization (every hour)
+cron = "0 0 * * * *"
+name = "performance-optimization"
+
+[[triggers.crons]]
+# Daily Backup (every day at 2 AM UTC)
+cron = "0 0 2 * * *"
+name = "daily-backup"
+
+[[triggers.crons]]
+# Weekly Reports (every Sunday at 6 AM UTC)
+cron = "0 0 6 * * 0"
+name = "weekly-reports"
+
+# Durable Objects (for state management)
+[[durable_objects.bindings]]
+name = "SCHEDULER_STATE"
+class_name = "SchedulerState"
+
+[[durable_objects.bindings]]
+name = "JOB_QUEUE"
+class_name = "JobQueue"
+
+# KV Namespaces (for caching and configuration)
+[[kv_namespaces]]
+binding = "SCHEDULER_CONFIG"
+id = ""
+preview_id = ""
+
+[[kv_namespaces]]
+binding = "JOB_CACHE"
+id = ""
+preview_id = ""
+
+[[kv_namespaces]]
+binding = "METRICS_CACHE"
+id = ""
+preview_id = ""
+
+# R2 Buckets (for logs and backups)
+[[r2_buckets]]
+binding = "LOGS_BUCKET"
+bucket_name = "meme-coin-radar-logs"
+
+[[r2_buckets]]
+binding = "BACKUPS_BUCKET"
+bucket_name = "meme-coin-radar-backups"
+
+# D1 Database (for job history and metrics)
+[[d1_databases]]
+binding = "SCHEDULER_DB"
+database_name = "meme-coin-radar-scheduler"
+database_id = ""
+
+# Analytics Engine (for metrics)
+[[analytics_engine_datasets]]
+binding = "SCHEDULER_ANALYTICS"
+
+# Queue (for job processing)
+[[queues]]
+binding = "JOB_QUEUE"
+queue_name = "meme-coin-radar-jobs"
+
+[[queues.consumers]]
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "meme-coin-radar-dlq"
+
+# Service Bindings (for communication with other services)
+[[services]]
+binding = "API_SERVICE"
+service = "meme-coin-radar-api"
+
+[[services]]
+binding = "SENTINEL_SERVICE"
+service = "meme-coin-radar-sentinel"
+
+# Limits and Configuration
+[limits]
+cpu_ms = 30000  # 30 seconds CPU time
+memory_mb = 128  # 128 MB memory
+
+# Observability
+[observability]
+enabled = true
+
+# Placement
+[placement]
+mode = "smart"
+
+# Tail Workers (for logging)
+[[tail_consumers]]
+service = "meme-coin-radar-logger"
+
+# Unsafe Configuration (for Node.js compatibility)
+[unsafe]
+bindings = [
+  { name = "process", type = "plain_text", text = "process" },
+  { name = "Buffer", type = "plain_text", text = "Buffer" }
+]
+
+# Miniflare Configuration (for local development)
+[miniflare]
+kv_persist = true
+d1_persist = true
+r2_persist = true
+durable_objects_persist = true
+
+# Development Configuration
+[dev]
+ip = "127.0.0.1"
+port = 8787
+local_protocol = "http"
+upstream_protocol = "https"
+
+# Deployment Configuration
+[deploy]
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]

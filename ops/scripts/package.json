@@ -1,0 +1,68 @@
+{
+  "name": "@meme-coin-radar/ops-scripts",
+  "version": "1.0.0",
+  "description": "Deployment and operational scripts for Meme Coin Radar",
+  "main": "deploy.js",
+  "scripts": {
+    "deploy:staging": "node deploy.js staging",
+    "deploy:production": "node deploy.js production",
+    "deploy:dry-run": "node deploy.js staging --dry-run",
+    "verify:staging": "node post-deployment-verification.js staging",
+    "verify:production": "node post-deployment-verification.js production",
+    "rollback:staging": "node rollback.js staging",
+    "rollback:production": "node rollback.js production",
+    "rollback:emergency": "node rollback.js production --emergency",
+    "health:check": "node health-check.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint *.js",
+    "lint:fix": "eslint *.js --fix"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "fs-extra": "^11.1.1",
+    "inquirer": "^8.2.6",
+    "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4",
+    "node-cron": "^3.0.3",
+    "ora": "^5.4.1",
+    "table": "^6.8.1",
+    "winston": "^3.11.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "deployment",
+    "operations",
+    "devops",
+    "automation",
+    "monitoring",
+    "meme-coin-radar"
+  ],
+  "author": "Meme Coin Radar Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/meme-coin-radar.git",
+    "directory": "ops/scripts"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/meme-coin-radar/issues"
+  },
+  "homepage": "https://github.com/your-org/meme-coin-radar#readme"
+}

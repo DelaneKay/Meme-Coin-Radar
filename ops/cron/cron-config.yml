@@ -1,0 +1,393 @@
+# Meme Coin Radar - Scheduled Jobs Configuration
+# This file defines all scheduled jobs for the system
+
+version: "1.0"
+
+# Environment-specific configurations
+environments:
+  production:
+    timezone: "UTC"
+    max_concurrent_jobs: 5
+    job_timeout: 300  # 5 minutes default timeout
+    retry_attempts: 3
+    retry_delay: 30   # seconds
+    
+  staging:
+    timezone: "UTC"
+    max_concurrent_jobs: 3
+    job_timeout: 180  # 3 minutes
+    retry_attempts: 2
+    retry_delay: 15
+    
+  development:
+    timezone: "UTC"
+    max_concurrent_jobs: 2
+    job_timeout: 120  # 2 minutes
+    retry_attempts: 1
+    retry_delay: 10
+
+# Job definitions
+jobs:
+  # Radar scanning jobs
+  radar_scan_sol:
+    name: "Solana Radar Scan"
+    description: "Scan for new tokens on Solana blockchain"
+    schedule: "*/15 * * * * *"  # Every 15 seconds
+    command: "npm run radar:scan"
+    environment:
+      CHAIN: "sol"
+      SCAN_TYPE: "new_tokens"
+    timeout: 60
+    retry_attempts: 2
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.5"
+    healthcheck:
+      endpoint: "/health/radar/sol"
+      timeout: 10
+      
+  radar_scan_eth:
+    name: "Ethereum Radar Scan"
+    description: "Scan for new tokens on Ethereum blockchain"
+    schedule: "*/30 * * * * *"  # Every 30 seconds
+    command: "npm run radar:scan"
+    environment:
+      CHAIN: "eth"
+      SCAN_TYPE: "new_tokens"
+    timeout: 90
+    retry_attempts: 2
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.5"
+    healthcheck:
+      endpoint: "/health/radar/eth"
+      timeout: 15
+      
+  radar_scan_bsc:
+    name: "BSC Radar Scan"
+    description: "Scan for new tokens on Binance Smart Chain"
+    schedule: "*/45 * * * * *"  # Every 45 seconds
+    command: "npm run radar:scan"
+    environment:
+      CHAIN: "bsc"
+      SCAN_TYPE: "new_tokens"
+    timeout: 75
+    retry_attempts: 2
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.5"
+    healthcheck:
+      endpoint: "/health/radar/bsc"
+      timeout: 12
+      
+  radar_scan_base:
+    name: "Base Radar Scan"
+    description: "Scan for new tokens on Base blockchain"
+    schedule: "*/60 * * * * *"  # Every 60 seconds
+    command: "npm run radar:scan"
+    environment:
+      CHAIN: "base"
+      SCAN_TYPE: "new_tokens"
+    timeout: 60
+    retry_attempts: 2
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.5"
+    healthcheck:
+      endpoint: "/health/radar/base"
+      timeout: 10
+
+  # Sentinel monitoring jobs
+  sentinel_cex_monitor:
+    name: "CEX Listing Monitor"
+    description: "Monitor CEX listings for tracked tokens"
+    schedule: "0 */2 * * * *"  # Every 2 minutes
+    command: "npm run sentinel:cex-monitor"
+    environment:
+      MONITOR_TYPE: "cex_listings"
+    timeout: 120
+    retry_attempts: 3
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.3"
+    healthcheck:
+      endpoint: "/health/sentinel/cex"
+      timeout: 15
+      
+  sentinel_price_monitor:
+    name: "Price Movement Monitor"
+    description: "Monitor significant price movements"
+    schedule: "0 */3 * * * *"  # Every 3 minutes
+    command: "npm run sentinel:price-monitor"
+    environment:
+      MONITOR_TYPE: "price_movements"
+      THRESHOLD_PERCENT: "20"
+    timeout: 180
+    retry_attempts: 2
+    enabled: true
+    priority: "medium"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.3"
+    healthcheck:
+      endpoint: "/health/sentinel/price"
+      timeout: 20
+
+  # Security monitoring jobs
+  security_scan:
+    name: "Security Scan"
+    description: "Perform security scans on discovered tokens"
+    schedule: "0 */5 * * * *"  # Every 5 minutes
+    command: "npm run security:scan"
+    environment:
+      SCAN_TYPE: "token_security"
+      BATCH_SIZE: "50"
+    timeout: 300
+    retry_attempts: 2
+    enabled: true
+    priority: "medium"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.4"
+    healthcheck:
+      endpoint: "/health/security/scan"
+      timeout: 30
+      
+  security_threat_analysis:
+    name: "Threat Analysis"
+    description: "Analyze security events and patterns"
+    schedule: "0 */10 * * * *"  # Every 10 minutes
+    command: "npm run security:analyze"
+    environment:
+      ANALYSIS_TYPE: "threat_patterns"
+      LOOKBACK_MINUTES: "60"
+    timeout: 180
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.2"
+
+  # Data maintenance jobs
+  cache_cleanup:
+    name: "Cache Cleanup"
+    description: "Clean up expired cache entries"
+    schedule: "0 */15 * * * *"  # Every 15 minutes
+    command: "npm run maintenance:cache-cleanup"
+    environment:
+      CLEANUP_TYPE: "expired_entries"
+      MAX_AGE_HOURS: "24"
+    timeout: 60
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "128MB"
+      cpu_limit: "0.1"
+      
+  metrics_aggregation:
+    name: "Metrics Aggregation"
+    description: "Aggregate and store metrics data"
+    schedule: "0 */5 * * * *"  # Every 5 minutes
+    command: "npm run metrics:aggregate"
+    environment:
+      AGGREGATION_WINDOW: "5m"
+      RETENTION_DAYS: "30"
+    timeout: 120
+    retry_attempts: 2
+    enabled: true
+    priority: "medium"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.2"
+      
+  log_rotation:
+    name: "Log Rotation"
+    description: "Rotate and compress log files"
+    schedule: "0 0 * * * *"  # Every hour
+    command: "npm run maintenance:log-rotation"
+    environment:
+      MAX_LOG_SIZE: "100MB"
+      RETENTION_DAYS: "7"
+    timeout: 300
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "128MB"
+      cpu_limit: "0.1"
+
+  # Health monitoring jobs
+  health_check:
+    name: "System Health Check"
+    description: "Comprehensive system health monitoring"
+    schedule: "0 */1 * * * *"  # Every minute
+    command: "npm run health:check"
+    environment:
+      CHECK_TYPE: "comprehensive"
+      ALERT_THRESHOLD: "critical"
+    timeout: 30
+    retry_attempts: 1
+    enabled: true
+    priority: "high"
+    resources:
+      memory_limit: "128MB"
+      cpu_limit: "0.1"
+    healthcheck:
+      endpoint: "/health"
+      timeout: 5
+      
+  external_api_health:
+    name: "External API Health Check"
+    description: "Monitor external API availability"
+    schedule: "0 */2 * * * *"  # Every 2 minutes
+    command: "npm run health:external-apis"
+    environment:
+      CHECK_APIS: "dexscreener,goplus,birdeye,coingecko"
+      TIMEOUT_SECONDS: "10"
+    timeout: 60
+    retry_attempts: 2
+    enabled: true
+    priority: "medium"
+    resources:
+      memory_limit: "128MB"
+      cpu_limit: "0.1"
+
+  # Backup and recovery jobs
+  database_backup:
+    name: "Database Backup"
+    description: "Create database backups"
+    schedule: "0 0 2 * * *"  # Daily at 2 AM
+    command: "npm run backup:database"
+    environment:
+      BACKUP_TYPE: "full"
+      RETENTION_DAYS: "30"
+      COMPRESSION: "gzip"
+    timeout: 1800  # 30 minutes
+    retry_attempts: 2
+    enabled: true
+    priority: "medium"
+    resources:
+      memory_limit: "512MB"
+      cpu_limit: "0.3"
+      
+  config_backup:
+    name: "Configuration Backup"
+    description: "Backup system configurations"
+    schedule: "0 0 3 * * *"  # Daily at 3 AM
+    command: "npm run backup:config"
+    environment:
+      BACKUP_TYPE: "incremental"
+      INCLUDE_SECRETS: "false"
+    timeout: 300
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "128MB"
+      cpu_limit: "0.1"
+
+  # Performance optimization jobs
+  query_optimization:
+    name: "Query Performance Analysis"
+    description: "Analyze and optimize database queries"
+    schedule: "0 0 4 * * 0"  # Weekly on Sunday at 4 AM
+    command: "npm run optimize:queries"
+    environment:
+      ANALYSIS_PERIOD: "7d"
+      SLOW_QUERY_THRESHOLD: "1000ms"
+    timeout: 600  # 10 minutes
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.2"
+      
+  cache_warming:
+    name: "Cache Warming"
+    description: "Pre-populate cache with frequently accessed data"
+    schedule: "0 30 */6 * * *"  # Every 6 hours at 30 minutes past
+    command: "npm run cache:warm"
+    environment:
+      WARM_TYPE: "popular_tokens"
+      BATCH_SIZE: "100"
+    timeout: 300
+    retry_attempts: 1
+    enabled: true
+    priority: "low"
+    resources:
+      memory_limit: "256MB"
+      cpu_limit: "0.2"
+
+# Job dependencies and ordering
+dependencies:
+  - job: "security_scan"
+    depends_on: ["radar_scan_sol", "radar_scan_eth", "radar_scan_bsc", "radar_scan_base"]
+    wait_for_completion: false
+    
+  - job: "metrics_aggregation"
+    depends_on: ["health_check"]
+    wait_for_completion: true
+    
+  - job: "cache_cleanup"
+    depends_on: ["cache_warming"]
+    wait_for_completion: false
+
+# Notification settings
+notifications:
+  on_failure:
+    channels: ["slack", "email"]
+    severity_threshold: "high"
+    
+  on_success:
+    channels: ["slack"]
+    jobs: ["database_backup", "config_backup"]
+    
+  on_timeout:
+    channels: ["slack", "email"]
+    severity_threshold: "medium"
+
+# Monitoring and alerting
+monitoring:
+  job_execution_metrics: true
+  performance_tracking: true
+  resource_usage_monitoring: true
+  
+  alerts:
+    job_failure_threshold: 3  # Alert after 3 consecutive failures
+    execution_time_threshold: 150  # Alert if job takes 150% of expected time
+    resource_usage_threshold: 90   # Alert if resource usage exceeds 90%
+
+# Resource limits and quotas
+resource_limits:
+  total_memory: "2GB"
+  total_cpu: "2.0"
+  max_concurrent_jobs: 5
+  disk_space_threshold: "80%"
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+  include_metrics: true
+  retention_days: 7
+  
+  fields:
+    - timestamp
+    - job_name
+    - execution_time
+    - status
+    - error_message
+    - resource_usage

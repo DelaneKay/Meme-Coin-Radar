@@ -1,0 +1,318 @@
+services:
+  # API Service
+  - type: web
+    name: meme-coin-radar-api
+    runtime: docker
+    dockerfilePath: ./infra/docker/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - api/**
+        - shared/**
+        - infra/docker/**
+        - package.json
+        - package-lock.json
+    envVars:
+      # Core System
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: HOST
+        value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_STRUCTURED_LOGS
+        value: true
+      - key: ENABLE_METRICS
+        value: true
+      
+      # Redis Configuration (Upstash)
+      - key: REDIS_URL
+        fromGroup: cache-config
+      - key: REDIS_TOKEN
+        fromGroup: cache-config
+      - key: REDIS_PASSWORD
+        fromGroup: cache-config
+      - key: ENABLE_REDIS
+        value: true
+      - key: REDIS_CONNECT_TIMEOUT
+        value: 10000
+      - key: REDIS_COMMAND_TIMEOUT
+        value: 5000
+      - key: CACHE_TTL_SECONDS
+        value: 300
+      - key: CACHE_MAX_KEYS
+        value: 5000
+      
+      # Rate Limiting (Conservative for free tiers)
+      - key: BIRDEYE_RATE_LIMIT_RPM
+        value: 45
+      - key: GOPLUS_RATE_LIMIT_RPM
+        value: 20
+      - key: DEXSCREENER_RATE_LIMIT_RPM
+        value: 200
+      - key: GECKOTERMINAL_RATE_LIMIT_RPM
+        value: 80
+      - key: API_RATE_LIMIT_RPM
+        value: 500
+      
+      # Circuit Breaker Settings
+      - key: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+        value: 5
+      - key: CIRCUIT_BREAKER_TIMEOUT_MS
+        value: 60000
+      
+      # Chain Configuration
+      - key: ENABLED_CHAINS
+        value: sol,eth,bsc,base
+      - key: DEFAULT_CHAIN
+        value: sol
+      - key: SOL_REFRESH_MS
+        value: 30000
+      - key: ETH_REFRESH_MS
+        value: 45000
+      - key: BSC_REFRESH_MS
+        value: 35000
+      - key: BASE_REFRESH_MS
+        value: 40000
+      
+      # Token Filtering
+      - key: MIN_LIQUIDITY_USD
+        value: 12000
+      - key: MAX_TOKEN_AGE_HOURS
+        value: 48
+      - key: MIN_VOLUME_5M_USD
+        value: 1000
+      - key: MAX_BUY_TAX_PERCENT
+        value: 10
+      - key: MAX_SELL_TAX_PERCENT
+        value: 10
+      - key: MIN_TRANSACTIONS_5M
+        value: 10
+      
+      # Signal Detection
+      - key: HOTLIST_MIN_SCORE
+        value: 80
+      - key: TRENDING_MIN_SCORE
+        value: 70
+      - key: ALERT_MIN_SCORE
+        value: 75
+      - key: VOLUME_SPIKE_THRESHOLD
+        value: 3.0
+      
+      # Alert Thresholds
+      - key: ALERT_MIN_LIQUIDITY_USD
+        value: 20000
+      - key: ALERT_MIN_VOLUME_USD
+        value: 5000
+      - key: ALERT_COOLDOWN_MINUTES
+        value: 15
+      - key: MAX_ALERTS_PER_MINUTE
+        value: 5
+      - key: MAX_ALERTS_PER_HOUR
+        value: 50
+      
+      # Security Settings
+      - key: ENABLE_SECURITY_CHECKS
+        value: true
+      - key: SECURITY_CHECK_TIMEOUT_MS
+        value: 10000
+      - key: SECURITY_CACHE_TTL_SECONDS
+        value: 3600
+      - key: CHECK_HONEYPOT
+        value: true
+      - key: CHECK_BLACKLIST
+        value: true
+      
+      # Performance & Monitoring
+      - key: MAX_MEMORY_USAGE_MB
+        value: 400
+      - key: ENABLE_MEMORY_MONITORING
+        value: true
+      - key: HTTP_TIMEOUT_MS
+        value: 10000
+      - key: MAX_CONCURRENT_REQUESTS
+        value: 8
+      - key: ENABLE_HEALTH_ENDPOINT
+        value: true
+      
+      # WebSocket Configuration
+      - key: ENABLE_WEBSOCKET
+        value: true
+      - key: WS_PORT
+        value: 3002
+      - key: WS_MAX_CONNECTIONS
+        value: 100
+      - key: WS_HEARTBEAT_INTERVAL_MS
+        value: 30000
+      
+      # CORS & Security
+      - key: CORS_ORIGIN
+        fromGroup: frontend-urls
+      - key: CORS_CREDENTIALS
+        value: true
+      - key: ENABLE_SECURITY_HEADERS
+        value: true
+      - key: ENABLE_RATE_LIMITING
+        value: true
+      
+      # Feature Flags
+      - key: RADAR_ONLY
+        value: false
+      
+      # API Keys (from secrets)
+      - key: BIRDEYE_API_KEY
+        fromGroup: api-keys
+      - key: GOPLUS_API_KEY
+        fromGroup: api-keys
+      - key: COINGECKO_API_KEY
+        fromGroup: api-keys
+      
+      # Webhook Configuration
+      - key: DISCORD_WEBHOOK_URL
+        fromGroup: webhooks
+      - key: DISCORD_ALERTS_WEBHOOK_URL
+        fromGroup: webhooks
+      - key: DISCORD_ERRORS_WEBHOOK_URL
+        fromGroup: webhooks
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: webhooks
+      - key: TELEGRAM_CHAT_ID
+        fromGroup: webhooks
+      - key: WEBHOOK_SECRET
+        fromGroup: webhooks
+      - key: ENABLE_DISCORD_ALERTS
+        value: true
+
+  # Sentinel Cron Job
+  - type: cron
+    name: meme-coin-radar-sentinel
+    runtime: node
+    buildCommand: npm install && npm run build --workspace=sentinel
+    startCommand: npm run start --workspace=sentinel
+    schedule: "*/2 * * * *"  # Every 2 minutes
+    region: oregon
+    plan: free
+    branch: main
+    buildFilter:
+      paths:
+        - sentinel/**
+        - shared/**
+        - package.json
+        - package-lock.json
+    envVars:
+      # Core System
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_STRUCTURED_LOGS
+        value: true
+      
+      # Redis Configuration (Upstash)
+      - key: REDIS_URL
+        fromGroup: cache-config
+      - key: REDIS_TOKEN
+        fromGroup: cache-config
+      - key: REDIS_PASSWORD
+        fromGroup: cache-config
+      - key: ENABLE_REDIS
+        value: true
+      
+      # Sentinel Configuration
+      - key: ENABLE_SENTINEL
+        value: true
+      - key: SENTINEL_REFRESH_MS
+        value: 120000
+      - key: SENTINEL_STAGGER_DELAY_MS
+        value: 5000
+      - key: SENTINEL_MAX_CONCURRENT
+        value: 2
+      - key: ENABLED_EXCHANGES
+        value: binance,coinbase,kraken,okx,bybit,gate,kucoin
+      - key: EXCHANGE_REQUEST_DELAY_MS
+        value: 3000
+      - key: EXCHANGE_TIMEOUT_MS
+        value: 15000
+      
+      # Listing Detection
+      - key: MIN_LISTING_LIQUIDITY_USD
+        value: 50000
+      - key: LISTING_CONFIRMATION_SOURCES
+        value: 2
+      - key: ENABLE_ADDRESS_VERIFICATION
+        value: true
+      
+      # Alert Configuration
+      - key: ENABLE_LISTING_ALERTS
+        value: true
+      - key: LISTING_ALERT_COOLDOWN_MINUTES
+        value: 60
+      
+      # Performance
+      - key: MAX_MEMORY_USAGE_MB
+        value: 200
+      - key: HTTP_TIMEOUT_MS
+        value: 15000
+      
+      # Webhook Configuration
+      - key: DISCORD_WEBHOOK_URL
+        fromGroup: webhooks
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: webhooks
+      - key: LISTING_WEBHOOK_URL
+        fromGroup: webhooks
+
+# Environment Variable Groups for Secrets Management
+envVarGroups:
+  - name: api-keys
+    envVars:
+      - key: BIRDEYE_API_KEY
+        generateValue: false
+      - key: GOPLUS_API_KEY
+        generateValue: false
+      - key: COINGECKO_API_KEY
+        generateValue: false
+  
+  - name: webhooks
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        generateValue: false
+      - key: DISCORD_ALERTS_WEBHOOK_URL
+        generateValue: false
+      - key: DISCORD_ERRORS_WEBHOOK_URL
+        generateValue: false
+      - key: TELEGRAM_BOT_TOKEN
+        generateValue: false
+      - key: TELEGRAM_CHAT_ID
+        generateValue: false
+      - key: TELEGRAM_ALERTS_CHAT_ID
+        generateValue: false
+      - key: LISTING_WEBHOOK_URL
+        generateValue: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
+  
+  - name: cache-config
+    envVars:
+      - key: REDIS_URL
+        generateValue: false
+      - key: REDIS_TOKEN
+        generateValue: false
+      - key: REDIS_PASSWORD
+        generateValue: false
+  
+  - name: frontend-urls
+    envVars:
+      - key: CORS_ORIGIN
+        value: https://meme-coin-radar.vercel.app
+      - key: NEXT_PUBLIC_API_URL
+        value: https://meme-coin-radar-api.onrender.com
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://meme-coin-radar-api.onrender.com

@@ -1,0 +1,234 @@
+# Render.com deployment configuration for Meme Coin Radar Scheduler
+services:
+  # Scheduler Service (Cron Jobs)
+  - type: cron
+    name: meme-coin-radar-scheduler
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: |
+      cd ops/cron
+      npm ci --only=production
+    startCommand: node ops/cron/scheduler.js ops/cron/cron-config.yml
+    
+    # Environment Variables
+    envVars:
+      # Node.js Configuration
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=512"
+      - key: TZ
+        value: UTC
+      
+      # Application Configuration
+      - key: PORT
+        value: 3001
+      - key: LOG_LEVEL
+        value: info
+      - key: METRICS_PORT
+        value: 9090
+      
+      # Redis Configuration
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: meme-coin-radar-redis
+          property: connectionString
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: meme-coin-radar-redis
+          property: password
+      
+      # Database Configuration
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: meme-coin-radar-db
+          property: connectionString
+      
+      # External API Keys
+      - key: DEXSCREENER_API_KEY
+        sync: false
+      - key: GOPLUS_API_KEY
+        sync: false
+      - key: BIRDEYE_API_KEY
+        sync: false
+      - key: COINGECKO_API_KEY
+        sync: false
+      
+      # API Configuration
+      - key: API_BASE_URL
+        value: https://meme-coin-radar-api.onrender.com
+      - key: FRONTEND_URL
+        value: https://meme-coin-radar.vercel.app
+      
+      # Rate Limiting
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      
+      # Security
+      - key: JWT_SECRET
+        sync: false
+      - key: API_KEY_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      
+      # Monitoring & Alerting
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: EMAIL_SERVICE_API_KEY
+        sync: false
+      - key: PAGERDUTY_INTEGRATION_KEY
+        sync: false
+      
+      # Performance Tuning
+      - key: MAX_CONCURRENT_JOBS
+        value: 5
+      - key: JOB_TIMEOUT_MS
+        value: 300000
+      - key: RETRY_ATTEMPTS
+        value: 3
+      - key: RETRY_DELAY_MS
+        value: 5000
+      
+      # Health Check Configuration
+      - key: HEALTH_CHECK_INTERVAL_MS
+        value: 30000
+      - key: HEALTH_CHECK_TIMEOUT_MS
+        value: 10000
+    
+    # Cron Schedule Configuration
+    schedule: "*/15 * * * *"  # Run every 15 minutes
+    
+    # Health Check
+    healthCheckPath: /health
+    
+    # Auto-deploy
+    autoDeploy: true
+    
+    # Build Configuration
+    buildFilter:
+      paths:
+        - ops/cron/**
+        - api/src/**
+        - sentinel/src/**
+        - package.json
+        - package-lock.json
+    
+    # Disk Storage
+    disk:
+      name: scheduler-disk
+      mountPath: /app/data
+      sizeGB: 1
+    
+    # Resource Limits
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    
+    # Notifications
+    notifications:
+      - type: slack
+        webhook: $SLACK_WEBHOOK_URL
+        events:
+          - deploy-succeeded
+          - deploy-failed
+          - service-suspended
+      
+      - type: email
+        email: admin@memecoinradar.com
+        events:
+          - deploy-failed
+          - service-suspended
+
+  # Redis Cache Service
+  - type: redis
+    name: meme-coin-radar-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    
+    # Redis Configuration
+    ipAllowList: []  # Allow all IPs for now
+    
+    # Notifications
+    notifications:
+      - type: email
+        email: admin@memecoinradar.com
+        events:
+          - service-suspended
+
+  # PostgreSQL Database Service
+  - type: pserv
+    name: meme-coin-radar-db
+    plan: starter
+    region: oregon
+    databaseName: meme_coin_radar
+    databaseUser: radar_user
+    
+    # Database Configuration
+    ipAllowList: []  # Allow all IPs for now
+    
+    # Backup Configuration
+    backup:
+      enabled: true
+      schedule: "0 2 * * *"  # Daily at 2 AM
+      retention: 7  # Keep 7 days of backups
+    
+    # Notifications
+    notifications:
+      - type: email
+        email: admin@memecoinradar.com
+        events:
+          - service-suspended
+          - backup-failed
+
+# Global Configuration
+region: oregon
+previewsEnabled: true
+
+# Build Configuration
+buildCommand: |
+  # Install root dependencies
+  npm ci
+  
+  # Build API
+  npm run build --workspace=api
+  
+  # Build Sentinel
+  npm run build --workspace=sentinel
+  
+  # Install scheduler dependencies
+  cd ops/cron
+  npm ci --only=production
+
+# Environment Groups (for shared environment variables)
+envVarGroups:
+  - name: external-apis
+    envVars:
+      - key: DEXSCREENER_BASE_URL
+        value: https://api.dexscreener.com
+      - key: GOPLUS_BASE_URL
+        value: https://api.gopluslabs.io
+      - key: BIRDEYE_BASE_URL
+        value: https://public-api.birdeye.so
+      - key: COINGECKO_BASE_URL
+        value: https://api.coingecko.com/api/v3
+  
+  - name: monitoring
+    envVars:
+      - key: METRICS_ENABLED
+        value: true
+      - key: LOGGING_ENABLED
+        value: true
+      - key: TRACING_ENABLED
+        value: false
+      - key: PROMETHEUS_METRICS_PATH
+        value: /metrics

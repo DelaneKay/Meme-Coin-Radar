@@ -1,0 +1,16 @@
+{
+  "id": "deploy-1758884278002",
+  "timestamp": "2025-09-26T10:57:58.003Z",
+  "environment": "production",
+  "version": null,
+  "steps": [
+    {
+      "step": "pre_deployment_checks",
+      "success": false,
+      "message": "Git status check failed: Command failed: git rev-parse --abbrev-ref HEAD\nfatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n",
+      "timestamp": "2025-09-26T10:57:58.326Z"
+    }
+  ],
+  "status": "failed",
+  "error": "Pre-deployment checks failed: Git status check failed: Command failed: git rev-parse --abbrev-ref HEAD\nfatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n"
+}
